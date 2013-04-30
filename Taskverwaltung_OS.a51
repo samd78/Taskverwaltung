@@ -1,9 +1,5 @@
 $NOMOD51
 #include<REG517a.inc>
-	org 00h
-	jmp startOS
-	org 0x1B
-	JMP Timerinterrupt
 
 EXTRN CODE (ConsolenProzess)
 EXTRN CODE (pruefeEmpfangenC)
@@ -11,6 +7,7 @@ PUBLIC mystack
 PUBLIC prozessA
 PUBLIC prozessB
 PUBLIC prozessConsole
+PUBLIC Timerinterrupt
 
 
 
@@ -48,13 +45,18 @@ DS 20
 ;		org 0x21
 ;		DS 20
 
+;Interruptroutine an die richtige Stelle legen
+CSEG
+ORG 0x1B
+JMP Timerinterrupt
 
 ;CodeSegment beginnt
-CSEG AT 0
+ORG 0
 LJMP startOS
 
 
-
+Main 		SEGMENT CODE
+			RSEG Main
 startOS:
 MOV SP, #mystack-1
 
@@ -222,8 +224,8 @@ Timerinterrupt:
 				JMP endeInterrupt
 
 	endeInterrupt:
-	CLR TR1
-RETI
+
+	RETI
 
 
 END

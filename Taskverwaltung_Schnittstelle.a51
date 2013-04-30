@@ -9,6 +9,7 @@ $NOMOD51
 	EXTRN DATA (prozessA)
 	EXTRN DATA (prozessB)
 	EXTRN DATA (prozessConsole)
+	EXTRN CODE (Timerinterrupt)
 	
 
 
@@ -68,6 +69,14 @@ CJNE A, #0x63, pruefeEmpfangenC
 JMP startB
 
 startA:
+	;wenn Prozess A bereits gestartet: keine Aktion (wie bei Zeichen, welches nicht a,b oder c ist)
+	MOV A, prozessA
+	CJNE A, #0, pruefeEmpfangenC
+	
+	;Console gibt CPU an A
+	MOV prozessConsole, #0
+	MOV prozessA, #0xFF
+	
 	;Initialisierung des Datenbereichs
 	MOV SP, #mystack+9
 	;wechsle zu Registerbank2 für Prozess A
@@ -80,8 +89,8 @@ startA:
 	MOV S0BUF, #0x61
 	JMP pruefeGesendetA
 	
-	;Zeitscheiben Interrupt ausstelen, damit a gesendet werden kann
-	CLR ET1
+	;Interrupts ausstellen, damit a gesendet werden kann
+	CLR EAL
 	pruefeGesendetA:
 		JBC TI0, timerStarten
 		SETB WDT
@@ -90,7 +99,7 @@ startA:
 
 	;Timer starten
 	timerStarten:
-	SETB ET1
+	SETB EAL
 	;R1 zurücksetzten damit Timerschleife richtig
 	SETB TR0
 	MOV R1, #0
@@ -119,19 +128,28 @@ startA:
 stopA:
 	CLR	TR0
 	MOV prozessA+3, #0
+	;TODO sprung in den scheduler
+	JMP Timerinterrupt
 
 startB:
+	;Console gibt CPU an Prozess B ab
+	MOV prozessConsole, #0
+	MOV prozessB, #0xFF
 	;Setze Stackpointer auf Stackbereich von B
 	MOV SP, #mystack+14
 	SETB RS0
 	SETB RS1
 	MOV prozessB+3, #0xFF
-	;Timer starten
+	
 	;Initialisierung des Datenbereichs
 	MOV R0, #5
 	schleife:
 	MOV A, R0
 	ADD A, #48
+	
+	;Interrupts ausstellen, damit ununterbrochen gesendet werden kann
+	CLR EAL
+	
 	MOV S0BUF, A
 	pruefeGesendetB:
 		JBC TI0, sendeNaechsteTeil
@@ -141,16 +159,13 @@ startB:
 		
 	sendeNaechsteTeil:	
 		DJNZ R0, schleife
-		
-	pruefeEmpfangenB:
-	JBC RI0, leseEmpfangen
-	SETB WDT
-	SETB SWDT
-	JMP pruefeEmpfangenB	
-	MOV prozessB+3, #0	
+	;Interrupts wieder erlauben
+	SETB EAL
 	
 	;Prozess B fertig, wechsle zu scheduler um nächsten Prozess auszuwählen
-	
+	MOV prozessB+3, #0xFF
+	SETB TF1
+	NOP
 	
 
 
